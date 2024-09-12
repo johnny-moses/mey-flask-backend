@@ -4,6 +4,7 @@ from db.database import DatabaseSession
 from models.designer import Designer, Sidemark
 from models.inventory import Inventory
 from models.orders import Workorder
+from sqlalchemy.orm import joinedload
 
 
 @dashboard_bp.route('/dashboard/')
@@ -44,4 +45,20 @@ def get_orders_for_sidemark(sidemark_id):
     with DatabaseSession() as session:
         orders = session.query(Workorder).filter_by(sidemark_id=sidemark_id).all()
         order_data = [{"id": o.id, "workorder_id": o.workorder_id, "status": o.status} for o in orders]
+    return jsonify(order_data), 200
+
+
+@dashboard_bp.route('/api/designer/<int:designer_id>/sidemark/<int:sidemark_id>/orders', methods=['GET'])
+def view_orders(designer_id, sidemark_id):
+    """Return the orders for a specific designer and sidemark as JSON."""
+    with DatabaseSession() as session:
+        # Query the orders for the specified sidemark and designer
+        orders = (
+            session.query(Workorder)
+            .options(joinedload(Workorder.sidemark), joinedload(Workorder.designer))
+            .filter(Workorder.sidemark_id == sidemark_id, Workorder.designer_id == designer_id)
+            .all()
+        )
+
+    order_data = [{"id": o.id, "workorder_id": o.workorder_id, "status": o.status} for o in orders]
     return jsonify(order_data), 200
