@@ -1,8 +1,9 @@
 from flask import jsonify
 from . import dashboard_bp
 from db.database import DatabaseSession
-from models.designer import Designer
+from models.designer import Designer, Sidemark
 from models.inventory import Inventory
+from models.orders import Workorder
 
 
 @dashboard_bp.route('/dashboard/')
@@ -28,3 +29,19 @@ def view_designer_inventory(designer_id):
     inventory_data = [{"id": item.id, "item_name": item.item_name, "quantity": item.quantity} for item in designer_inventory]
 
     return jsonify(inventory_data), 200
+
+
+@dashboard_bp.route('/api/designer/<int:designer_id>/sidemarks', methods=['GET'])
+def get_sidemarks_for_designer(designer_id):
+    with DatabaseSession() as session:
+        sidemarks = session.query(Sidemark).filter_by(designer_id=designer_id).all()
+        sidemark_data = [{"id": s.id, "name": s.name} for s in sidemarks]
+    return jsonify(sidemark_data), 200
+
+
+@dashboard_bp.route('/api/sidemark/<int:sidemark_id>/orders', methods=['GET'])
+def get_orders_for_sidemark(sidemark_id):
+    with DatabaseSession() as session:
+        orders = session.query(Workorder).filter_by(sidemark_id=sidemark_id).all()
+        order_data = [{"id": o.id, "workorder_id": o.workorder_id, "status": o.status} for o in orders]
+    return jsonify(order_data), 200
