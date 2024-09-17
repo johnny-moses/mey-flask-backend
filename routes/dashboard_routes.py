@@ -1,9 +1,9 @@
-from flask import jsonify
+from flask import jsonify, request
 from . import dashboard_bp
 from db.database import DatabaseSession
 from models.designer import Designer, Sidemark
 from models.inventory import Inventory
-from models.orders import Workorder
+from models.orders import Workorder, WorkorderItem
 from sqlalchemy.orm import joinedload
 
 
@@ -62,3 +62,60 @@ def view_orders(designer_id, sidemark_id):
 
     order_data = [{"id": o.id, "workorder_id": o.workorder_id, "status": o.status} for o in orders]
     return jsonify(order_data), 200
+
+
+@dashboard_bp.route('/api/workorder/<int:workorder_id>/inventory', methods=['GET'])
+def view_workorder_inventory(workorder_id):
+    """Return the details of a workorder and its related inventory in JSON format."""
+    with DatabaseSession() as session:
+        # Query the Workorder
+        workorder = session.query(Workorder).filter_by(id=workorder_id).first()
+
+        # Query the WorkorderItems and associated Inventory for this Workorder
+        workorder_items = (
+            session.query(WorkorderItem, Inventory)
+            .join(Inventory, WorkorderItem.inventory_id == Inventory.id)
+            .filter(WorkorderItem.workorder_id == workorder_id)
+            .all()
+        )
+
+        # Prepare the response data
+        inventory_data = [
+            {
+                "id": item.Inventory.id,
+                "item_name": item.Inventory.item_name,
+                "quantity": item.WorkorderItem.quantity,
+                "description": item.Inventory.description  # Adjust fields as needed
+            }
+            for item in workorder_items
+        ]
+
+    return jsonify(inventory_data), 200
+
+
+@dashboard_bp.route('/api/add-sidemark', methods=['POST'])
+def add_sidemark():
+    data = request.get_json()
+    sidemark_name = data.get('sidemarkName')
+    company_name = data.get('company')
+
+    if sidemark_name and company_name:
+        with DatabaseSession() as session:
+            # Find the designer by company name
+            designer = session.query(Designer).filter(Designer.company == company_name).first()
+
+            if designer:
+                new_sidemark = Sidemark(name=sidemark_name, designer_id=designer.id)
+                session.add(new_sidemark)
+                session.commit()
+
+                response = {
+                    'status': 'success',
+                    'message': f'New sidemark added: {sidemark_name}',
+                    'sidemark_name': sidemark_name
+                }
+                return jsonify(response), 200
+            else:
+                return jsonify({'status': 'fail', 'message': 'Designer not found.'}), 400
+    else:
+        return jsonify({'status': 'fail', 'message': 'Sidemark name or company name is missing.'}), 400
