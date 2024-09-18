@@ -36,8 +36,19 @@ def view_designer_inventory(designer_id):
 @dashboard_bp.route('/api/designer/<int:designer_id>/sidemarks', methods=['GET'])
 def get_sidemarks_for_designer(designer_id):
     with DatabaseSession() as session:
+        # Fetch the designer information
+        designer = session.query(Designer).filter_by(id=designer_id).first()
+
+        # If designer is not found, return an error response
+        if designer is None:
+            return jsonify({"error": "Designer not found"}), 404
+
+        # Fetch the sidemarks associated with the designer
         sidemarks = session.query(Sidemark).filter_by(designer_id=designer_id).all()
+
+        # Prepare the sidemark data
         sidemark_data = [{"id": s.id, "name": s.name} for s in sidemarks]
+
     return jsonify(sidemark_data), 200
 
 
@@ -99,7 +110,6 @@ def view_workorder_inventory(workorder_id):
         ]
 
     return jsonify(inventory_data), 200
-
 
 
 @dashboard_bp.route('/api/add-sidemark', methods=['POST'])
