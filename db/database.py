@@ -2,7 +2,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 
-engine = create_engine("mysql+pymysql://root:Satoko1948@127.0.0.1:3306/warehouse_dev")
+engine = create_engine("mysql+pymysql://root:Parkway0429@127.0.0.1:3306/dev_warehouse")
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()

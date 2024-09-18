@@ -27,7 +27,8 @@ def view_designer_inventory(designer_id):
     with DatabaseSession() as session:
         designer_inventory = session.query(Inventory).filter_by(designer_id=designer_id).all()
 
-    inventory_data = [{"id": item.id, "item_name": item.item_name, "quantity": item.quantity} for item in designer_inventory]
+    inventory_data = [{"id": item.id, "item_name": item.item_name, "quantity": item.quantity} for item in
+                      designer_inventory]
 
     return jsonify(inventory_data), 200
 
@@ -119,3 +120,33 @@ def add_sidemark():
                 return jsonify({'status': 'fail', 'message': 'Designer not found.'}), 400
     else:
         return jsonify({'status': 'fail', 'message': 'Sidemark name or company name is missing.'}), 400
+
+
+@dashboard_bp.route('/api/workorder/<int:workorder_id>/inventory', methods=['GET'])
+def view_workorder(workorder_id):
+    """Return workorder details and associated inventory as JSON."""
+    with DatabaseSession() as session:
+        # Query the requested Workorder
+        workorder = session.query(Workorder).filter_by(id=workorder_id).first()
+
+        if not workorder:
+            return jsonify({"status": "fail", "message": "Workorder not found."}), 404
+
+        # Fetch the WorkorderItems and associated Inventory
+        workorder_items = (
+            session.query(WorkorderItem, Inventory)
+            .join(Inventory, WorkorderItem.inventory_id == Inventory.id)
+            .filter(WorkorderItem.workorder_id == workorder_id)
+            .all()
+        )
+
+        # Convert the data to JSON-friendly format
+        inventory_data = [
+            {"id": item.Inventory.id, "item_name": item.Inventory.item_name, "quantity": item.WorkorderItem.quantity}
+            for item in workorder_items]
+
+        return jsonify({
+            "status": "success",
+            "workorder_id": workorder_id,
+            "inventory": inventory_data
+        }), 200
