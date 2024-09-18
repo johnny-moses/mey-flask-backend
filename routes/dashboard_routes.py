@@ -85,13 +85,21 @@ def view_workorder_inventory(workorder_id):
             {
                 "id": item.Inventory.id,
                 "item_name": item.Inventory.item_name,
-                "quantity": item.WorkorderItem.quantity,
-                "description": item.Inventory.description  # Adjust fields as needed
+                "sku": item.Inventory.sku,
+                "manufacture": item.Inventory.manufacture,
+                "quantity": item.Inventory.quantity,
+                # Note: This seems odd as it might be same as WorkorderItem.quantity.
+                "length": item.Inventory.length,
+                "width": item.Inventory.width,
+                "height": item.Inventory.height,
+                "weight": item.Inventory.weight,
+                "description": item.Inventory.description  # Include any other fields needed
             }
             for item in workorder_items
         ]
 
     return jsonify(inventory_data), 200
+
 
 
 @dashboard_bp.route('/api/add-sidemark', methods=['POST'])
