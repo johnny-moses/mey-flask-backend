@@ -1,19 +1,58 @@
+import logging
 from faker import Faker
 from models import Workorder, WorkorderItem, Designer, Sidemark, Inventory  # replace with actual import paths
 from db.database import DatabaseSession
 import random
 
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
 # Initialize Faker for generating dummy data
 fake = Faker()
+
+# Predefined lists for generating varied furniture names
+colors = ["Red", "Blue", "Green", "Yellow", "Black", "White", "Brown", "Gray", "Purple"]
+materials = ["Wooden", "Metal", "Plastic", "Glass", "Leather", "Fabric", "Marble"]
+furniture_types = ["Chair", "Table", "Sofa", "Bed", "Cabinet", "Desk", "Shelf", "Bench"]
+
+
+# Function to generate a unique furniture name
+def generate_furniture_name(existing_names):
+    while True:
+        color = random.choice(colors)
+        material = random.choice(materials)
+        furniture_type = random.choice(furniture_types)
+        name = f"{color} {material} {furniture_type}"
+        if name not in existing_names:  # Ensure the name is unique
+            existing_names.add(name)
+            return name
+
+
+def generate_sku():
+    # Generate a readable SKU in the format 'ABC12-34567'
+    return (f"{fake.random_uppercase_letter()}{fake.random_uppercase_letter()}{fake.random_uppercase_letter()}"
+            f"{random.randint(10, 99)}-{random.randint(10000, 99999)}")
+
+
+def generate_size():
+    # Return a random size from "S", "M", or "L"
+    return random.choice(["S", "M", "L"])
+
+
+def generate_workorder_id():
+    # Generate a readable workorder ID in the format 'WO-ABCDE-12345'
+    return (f"WO-{fake.random_uppercase_letter()}{fake.random_uppercase_letter()}{fake.random_uppercase_letter()}"
+            f"{fake.random_uppercase_letter()}{fake.random_uppercase_letter()}-{random.randint(10000, 99999)}")
 
 
 # Generate fake data for Inventory linked to Designers
 def create_inventory(session, designers, n=100):
     inventories = []
+    existing_names = set()  # Set to track unique inventory names
     for _ in range(n):
         inventory = Inventory(
-            item_name=fake.word(),
-            sku=fake.lexify(text='?????-#####'),
+            item_name=generate_furniture_name(existing_names),  # Generate unique name
+            sku=generate_sku(),
             manufacture=fake.company(),
             quantity=random.randint(1, 100),
             description=fake.text(),
@@ -26,7 +65,7 @@ def create_inventory(session, designers, n=100):
             cubic_sq_footage=random.uniform(1.0, 10.0),
             in_storage=fake.boolean(),
             days_in_storage=random.randint(0, 365),
-            size=fake.word(),
+            size=generate_size(),
             weight=random.randint(5, 100),
             received_by_admin=fake.boolean(),
             ground_receive=random.randint(0, 1),
@@ -35,9 +74,11 @@ def create_inventory(session, designers, n=100):
             unpacked=random.randint(0, 1),
             assembly_time=random.randint(0, 120)
         )
+        logging.info(f"Generated Inventory: {inventory.item_name}, SKU: {inventory.sku}")
         inventories.append(inventory)
         session.add(inventory)
     session.commit()  # Commit the inventories to ensure IDs are assigned
+    logging.info("Committed all inventory items to the database")
     return inventories
 
 
@@ -49,14 +90,17 @@ def create_workorders(session, sidemarks):
         num_workorders = random.randint(2, 13)
         for _ in range(num_workorders):
             workorder = Workorder(
-                workorder_id=fake.uuid4(),  # Unique identifier for workorder
+                workorder_id=generate_workorder_id(),  # Unique identifier for workorder
                 designer_id=sidemark.designer_id,  # Link to the designer of the sidemark
                 sidemark_id=sidemark.id,  # Link to the current sidemark
                 status=fake.random_element(['pending', 'processing', 'completed'])  # Random status
             )
+            logging.info(
+                f"Generated Workorder: {workorder.workorder_id}, Status: {workorder.status}, Sidemark ID: {workorder.sidemark_id}")
             workorders.append(workorder)
             session.add(workorder)
     session.commit()  # Commit the workorders to ensure IDs are assigned
+    logging.info("Committed all workorders to the database")
     return workorders
 
 
@@ -76,9 +120,12 @@ def create_workorder_items(session, workorders, inventories):
                 assembled=random.randint(0, 1),  # Assembled status
                 total_fee=random.uniform(100.0, 5000.0)  # Random fee
             )
+            logging.info(
+                f"Generated WorkorderItem: Workorder ID: {workorder_item.workorder_id}, Inventory ID: {workorder_item.inventory_id}, Quantity: {workorder_item.quantity}")
             workorder_items.append(workorder_item)
             session.add(workorder_item)
     session.commit()  # Commit the workorder items to ensure IDs are assigned
+    logging.info("Committed all workorder items to the database")
     return workorder_items
 
 
@@ -93,6 +140,8 @@ def main():
         if not designers or not sidemarks:
             raise ValueError("Not enough designers or sidemarks available to create workorders.")
 
+        logging.info("Starting data generation")
+
         # Step 1: Generate Inventory
         inventories = create_inventory(session, designers, 100)  # Generate 100 inventory items
 
@@ -101,6 +150,8 @@ def main():
 
         # Step 3: Generate WorkorderItems for each Workorder (3 to 15 per workorder)
         create_workorder_items(session, workorders, inventories)
+
+        logging.info("Data generation completed successfully")
 
 
 if __name__ == "__main__":

@@ -7,17 +7,28 @@ from models.orders import Workorder, WorkorderItem
 from sqlalchemy.orm import joinedload
 
 
-@dashboard_bp.route('/dashboard/')
-def index():
-    return jsonify({'message': 'success!'})
-
-
-@dashboard_bp.route('/api/designer/', methods=['GET'])  # I changed the route to be plural to align with convention
+@dashboard_bp.route('/api/designers/', methods=['GET'])
 def get_designer_names():
     with DatabaseSession() as session:
-        designers = session.query(Designer.id, Designer.designer_name).filter(Designer.designer_name.isnot(None)).all()
-        # Create a list of dictionaries with 'id' and 'designer_name'
-        designer_data = [{"id": designer.id, "name": designer.designer_name} for designer in designers]
+        designers = session.query(
+            Designer.id,
+            Designer.designer_name,
+            Designer.company,
+            Designer.email,
+            Designer.phone
+        ).filter(Designer.designer_name.isnot(None)).all()
+
+        designer_data = [
+            {
+                "id": designer.id,
+                "designer_name": designer.designer_name,
+                "company": designer.company,
+                "email": designer.email,
+                "phone": designer.phone
+            }
+            for designer in designers
+        ]
+
         return jsonify(designer_data), 200
 
 
@@ -36,8 +47,17 @@ def view_designer_inventory(designer_id):
 @dashboard_bp.route('/api/designer/<int:designer_id>/sidemarks', methods=['GET'])
 def get_sidemarks_for_designer(designer_id):
     with DatabaseSession() as session:
+        # get designer information
+        designer = session.query(Designer).filter_by(id=designer_id).first()
+
+        if designer is None:
+            return jsonify({"error": "Designer not found"}), 404
+
+        # get sidemarks associated with the designer
         sidemarks = session.query(Sidemark).filter_by(designer_id=designer_id).all()
+
         sidemark_data = [{"id": s.id, "name": s.name} for s in sidemarks]
+
     return jsonify(sidemark_data), 200
 
 
@@ -53,7 +73,6 @@ def get_orders_for_sidemark(sidemark_id):
 def view_orders(designer_id, sidemark_id):
     """Return the orders for a specific designer and sidemark as JSON."""
     with DatabaseSession() as session:
-        # Query the orders for the specified sidemark and designer
         orders = (
             session.query(Workorder)
             .options(joinedload(Workorder.sidemark), joinedload(Workorder.designer))
@@ -69,10 +88,9 @@ def view_orders(designer_id, sidemark_id):
 def view_workorder_inventory(workorder_id):
     """Return the details of a workorder and its related inventory in JSON format."""
     with DatabaseSession() as session:
-        # Query the Workorder
+
         workorder = session.query(Workorder).filter_by(id=workorder_id).first()
 
-        # Query the WorkorderItems and associated Inventory for this Workorder
         workorder_items = (
             session.query(WorkorderItem, Inventory)
             .join(Inventory, WorkorderItem.inventory_id == Inventory.id)
@@ -80,13 +98,18 @@ def view_workorder_inventory(workorder_id):
             .all()
         )
 
-        # Prepare the response data
         inventory_data = [
             {
                 "id": item.Inventory.id,
                 "item_name": item.Inventory.item_name,
-                "quantity": item.WorkorderItem.quantity,
-                "description": item.Inventory.description  # Adjust fields as needed
+                "sku": item.Inventory.sku,
+                "manufacture": item.Inventory.manufacture,
+                "quantity": item.Inventory.quantity,
+                "length": item.Inventory.length,
+                "width": item.Inventory.width,
+                "height": item.Inventory.height,
+                "weight": item.Inventory.weight,
+                "description": item.Inventory.description
             }
             for item in workorder_items
         ]
@@ -102,7 +125,7 @@ def add_sidemark():
 
     if sidemark_name and company_name:
         with DatabaseSession() as session:
-            # Find the designer by company name
+            # find designer by company name
             designer = session.query(Designer).filter(Designer.company == company_name).first()
 
             if designer:
@@ -126,13 +149,13 @@ def add_sidemark():
 def view_workorder(workorder_id):
     """Return workorder details and associated inventory as JSON."""
     with DatabaseSession() as session:
-        # Query the requested Workorder
+        # query the requested Workorder
         workorder = session.query(Workorder).filter_by(id=workorder_id).first()
 
         if not workorder:
             return jsonify({"status": "fail", "message": "Workorder not found."}), 404
 
-        # Fetch the WorkorderItems and associated Inventory
+        # get WorkorderItems and associated Inventory
         workorder_items = (
             session.query(WorkorderItem, Inventory)
             .join(Inventory, WorkorderItem.inventory_id == Inventory.id)
@@ -140,7 +163,6 @@ def view_workorder(workorder_id):
             .all()
         )
 
-        # Convert the data to JSON-friendly format
         inventory_data = [
             {"id": item.Inventory.id, "item_name": item.Inventory.item_name, "quantity": item.WorkorderItem.quantity}
             for item in workorder_items]
