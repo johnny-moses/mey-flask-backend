@@ -6,9 +6,9 @@ app = Flask(__name__)
 CORS(app)
 
 
-# @app.route('/', methods=['GET'])
-# def home():
-#     return jsonify({'message': 'success!'})
+@app.route('/', methods=['GET'])
+def online():
+    return jsonify({'message': 'mey-flask-api online!'})
 
 
 app.register_blueprint(dashboard_bp)
