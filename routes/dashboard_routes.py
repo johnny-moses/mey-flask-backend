@@ -88,7 +88,6 @@ def view_orders(designer_id, sidemark_id):
 def view_workorder_inventory(workorder_id):
     """Return the details of a workorder and its related inventory in JSON format."""
     with DatabaseSession() as session:
-
         workorder = session.query(Workorder).filter_by(id=workorder_id).first()
 
         workorder_items = (
@@ -172,3 +171,22 @@ def view_workorder(workorder_id):
             "workorder_id": workorder_id,
             "inventory": inventory_data
         }), 200
+
+
+@dashboard_bp.route('/api/workorder/<int:workorder_id>/inventory', methods=['PUT'])
+def update_workorder_inventory(workorder_id):
+    """Update the details of a workorder's related inventory."""
+    data = request.get_json()
+    item_changes = data
+
+    with DatabaseSession() as session:
+        for item_id, changes in item_changes.items():
+            inventory_item = session.query(Inventory).filter_by(id=item_id).first()
+            if inventory_item:
+                for key, value in changes.items():
+                    setattr(inventory_item, key, value)
+            else:
+                return jsonify({"error": f"Item with ID {item_id} not found"}), 400
+        session.commit()
+
+    return jsonify({"message": "Changes saved successfully"}), 200
