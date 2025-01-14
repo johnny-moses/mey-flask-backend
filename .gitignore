@@ -1,3 +1,6 @@
-.idea
+/.idea
+/.env
 /venv
-.env
+db/__pycache__/*
+models/*
+routes/*
